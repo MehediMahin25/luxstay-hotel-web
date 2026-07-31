@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LuxStay Hotel - Luxury Accommodation</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .notifications { position: relative; margin-right: 12px; }
+        .notif-btn { background: transparent; border: 0; cursor: pointer; position: relative; font-size: 18px; }
+        .notif-badge { position: absolute; top: -6px; right: -8px; background: #dc3545; color: #fff; font-size: 11px; border-radius: 10px; padding: 1px 6px; }
+        .hidden { display: none; }
+        .notif-dropdown { position: absolute; right: 0; top: 36px; width: 300px; background: #fff; border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 10px 20px rgba(0,0,0,.08); z-index: 1002; }
+        .notif-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
+        .mark-all { background: transparent; border: 0; color: #667eea; cursor: pointer; font-weight: 600; }
+        #notifList { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+        #notifList li { padding: 10px 12px; border-bottom: 1px solid #f8f9fa; display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+        #notifList li.unread { background: #f8f9ff; }
+        #notifList .meta { font-size: 12px; color: #777; }
+        .notif-empty { padding: 14px; text-align: center; color: #777; }
+        /* Notification dropdown visibility overrides */
+header { position: relative; z-index: 10; }
+.notifications { position: relative; margin-right: 12px; }
+.notif-btn { color: #111; }                 /* make the bell visible on light headers */
+.notif-badge { background: #ef4444; }       /* brighter red */
+
+.notif-dropdown {
+    background: #111827;                    /* dark background */
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 14px 40px rgba(0,0,0,.35);
+}
+
+.notif-header {
+    color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.mark-all { color: #93c5fd; }
+
+#notifList li {
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+#notifList li.unread {
+    background: rgba(147,197,253,.12);
+}
+#notifList .meta { color: #cbd5e1; }
+.notif-empty { color: #cbd5e1; }
+
+#notifList .mark,
+.notif-dropdown .mark {
+    background: #2563eb;
+    color: #fff;
+    border: 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header>
+            <div class="logo">
+                <h1>LuxStay Hotel</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="#home" class="active">Home</a></li>
+                    <li><a href="#rooms">Rooms</a></li>
+                    <li><a href="#services">Services</a></li>
+                    <li><a href="#about">About</a></li>
+                    <li><a href="#contact">Contact</a></li>
+                    <li id="myBookingsNavItem" class="hidden"><a href="my-bookings.html">My Bookings</a></li>
+                </ul>
+            </nav>
+            <div class="notifications">
+                <button id="notifBtn" class="notif-btn" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span id="notifBadge" class="notif-badge hidden">0</span>
+                </button>
+                <div id="notifDropdown" class="notif-dropdown hidden">
+                    <div class="notif-header">
+                        <span>Notifications</span>
+                        <button id="markAllRead" class="mark-all">Mark all read</button>
+                    </div>
+                    <ul id="notifList"></ul>
+                    <div class="notif-empty hidden">No notifications</div>
+                </div>
+            </div>
+            <div class="auth-buttons">
+                <button id="loginBtn">Login</button>
+                <button id="registerBtn">Register</button>
+                <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            <div class="user-profile hidden">
+                <span id="username">User</span>
+                <button id="logoutBtn">Logout</button>
+            </div>
+            <div class="menu-toggle">
+                <i class="fas fa-bars"></i>
+            </div>
+        </header>
+
+        <!-- Hero Section -->
+        <section id="home" class="hero">
+            <div class="hero-content">
+                <h1>Welcome to LuxStay Hotel</h1>
+                <p>Experience luxury and comfort like never before</p>
+                <button id="bookNowBtn">Book Now</button>
+            </div>
+        </section>
+
+        <!-- Room Section -->
+        <section id="rooms" class="rooms">
+            <h2 class="section-title">Our Rooms</h2>
+            <div class="room-filters">
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="standard">Standard</button>
+                <button class="filter-btn" data-filter="deluxe">Deluxe</button>
+                <button class="filter-btn" data-filter="suite">Suite</button>
+            </div>
+            <div class="room-container">
+                <!-- Room cards will be dynamically generated here -->
+            </div>
+        </section>
+
+        <!-- Services Section -->
+        <section id="services" class="services">
+            <h2 class="section-title">Our Services</h2>
+            <div class="services-container">
+                <div class="service-card">
+                    <i class="fas fa-utensils"></i>
+                    <h3>Restaurant</h3>
+                    <p>Enjoy delicious meals from our world-class restaurant.</p>
+                </div>
+                <div class="service-card">
+                    <i class="fas fa-swimming-pool"></i>
+                    <h3>Swimming Pool</h3>
+                    <p>Relax and unwind in our luxurious swimming pool.</p>
+                </div>
+                <div class="service-card">
+                    <i class="fas fa-spa"></i>
+                    <h3>Spa</h3>
+                    <p>Pamper yourself with our rejuvenating spa treatments.</p>
+                </div>
+                <div class="service-card">
+                    <i class="fas fa-dumbbell"></i>
+                    <h3>Fitness Center</h3>
+                    <p>Stay fit during your stay with our modern fitness equipment.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="about">
+            <h2 class="section-title">About Us</h2>
+            <div class="about-content">
+                <div class="about-image">
+                    <!-- About image – replace img/about-hotel.jpg with your own photo -->
+                    <img src="img/about-hotel.jpg" alt="Hotel Exterior">
+                </div>
+                <div class="about-text">
+                    <h3>LuxStay Hotel</h3>
+                    <p>LuxStay Hotel is a premier accommodation destination that combines luxury, comfort, and exceptional service. Established in 2010, we have been providing unforgettable experiences to our guests from around the world.</p>
+                    <p>Our dedicated staff ensures that every aspect of your stay exceeds expectations, from the moment you check in until your departure.</p>
+                    <button class="learn-more-btn">Learn More</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact" class="contact">
+            <h2 class="section-title">Contact Us</h2>
+            <div class="contact-container">
+                <div class="contact-info">
+                    <div class="info-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <p>123 Hotel Street, City, Country</p>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-phone"></i>
+                        <p>+1 234 567 890</p>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-envelope"></i>
+                        <p>info@luxstayhotel.com</p>
+                    </div>
+                </div>
+                <form class="contact-form">
+                    <input type="text" placeholder="Name" required>
+                    <input type="email" placeholder="Email" required>
+                    <input type="text" placeholder="Subject" required>
+                    <textarea placeholder="Message" required></textarea>
+                    <button type="submit">Send Message</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>LuxStay Hotel</h3>
+                    <p>Experience luxury and comfort like never before at LuxStay Hotel.</p>
+                    <div class="social-icons">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="#home">Home</a></li>
+                        <li><a href="#rooms">Rooms</a></li>
+                        <li><a href="#services">Services</a></li>
+                        <li><a href="#about">About</a></li>
+                        <li><a href="#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Subscribe</h3>
+                    <p>Subscribe to our newsletter for updates and offers.</p>
+                    <form class="subscribe-form">
+                        <input type="email" placeholder="Your Email" required>
+                        <button type="submit">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 LuxStay Hotel. All Rights Reserved.</p>
+            </div>
+        </footer>
+
+        <!-- Modal Popups -->
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit">Login</button>
+                    <p class="form-footer">Don't have an account? <span id="showRegister">Register</span></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Register Modal -->
+        <div id="registerModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h2>Register</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerName">Full Name</label>
+                        <input type="text" id="registerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" required>
+                    </div>
+                    <button type="submit">Register</button>
+                    <p class="form-footer">Already have an account? <span id="showLogin">Login</span></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Booking Modal -->
+        <div id="bookingModal" class="modal">
+            <div class="modal-content booking-modal">
+                <span class="close-btn">&times;</span>
+                <h2>Book a Room</h2>
+                <form id="bookingForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="checkInDate">Check-in Date</label>
+                            <input type="date" id="checkInDate" name="checkInDate" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkOutDate">Check-out Date</label>
+                            <input type="date" id="checkOutDate" name="checkOutDate" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="roomType">Room Type</label>
+                            <select id="roomType" name="roomType" required>
+                                <option value="">Select Room Type</option>
+                                <option value="standard">Standard Room</option>
+                                <option value="deluxe">Deluxe Room</option>
+                                <option value="suite">Suite</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="guests">Number of Guests</label>
+                            <select id="guests" name="guests" required>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="specialRequests">Special Requests</label>
+                        <textarea id="specialRequests" name="specialRequests"></textarea>
+                    </div>
+                    <div class="booking-summary hidden">
+                        <h3>Booking Summary</h3>
+                        <p><strong>Room:</strong> <span id="summaryRoom"></span></p>
+                        <p><strong>Check-in:</strong> <span id="summaryCheckIn"></span></p>
+                        <p><strong>Check-out:</strong> <span id="summaryCheckOut"></span></p>
+                        <p><strong>Guests:</strong> <span id="summaryGuests"></span></p>
+                        <p><strong>Total:</strong> ৳<span id="summaryTotal"></span></p>
+                        <div class="payment-info">
+                            <p><strong>Payment Method:</strong> SSL Commerz (Credit/Debit Card, Mobile Banking)</p>
+                            <p><small>Secure payment gateway powered by SSL Commerz</small></p>
+                        </div>
+                    </div>
+                    <button type="button" id="calculateBtn">Calculate Price</button>
+                    <button type="submit" id="confirmBookingBtn" class="hidden">Proceed to Payment</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Admin Panel (Hidden by default, shown only for admin users) -->
+        <div id="adminPanel" class="admin-panel hidden">
+            <div class="admin-sidebar">
+                <h2>Admin Panel</h2>
+                <ul>
+                    <li><a href="#" data-tab="dashboard" class="active">Dashboard</a></li>
+                    <li><a href="#" data-tab="bookings">Bookings</a></li>
+                    <li><a href="#" data-tab="users">Users</a></li>
+                    <li><a href="#" data-tab="payments">Payments</a></li>
+                    <li><a href="#" data-tab="admin-contact">Contact Form</a></li>
+                    <!-- <li><a href="#" data-tab="settings">Settings</a></li> -->
+                </ul>
+                <button id="closeAdminBtn">Close Admin Panel</button>
+            </div>
+            <div class="admin-content">
+                <div id="dashboard" class="admin-tab active">
+                    <h2>Dashboard</h2>
+                    <div class="dashboard-stats">
+                        <div class="stat-card">
+                            <h3>Total Bookings</h3>
+                            <p class="stat-number">125</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Available Rooms</h3>
+                            <p class="stat-number">42</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Registered Users</h3>
+                            <p class="stat-number">310</p>
+                        </div>
+                        <div class="stat-card">
+                            <h3>Revenue</h3>
+                            <p class="stat-number">$24,500</p>
+                        </div>
+                    </div>
+                    <div class="recent-bookings">
+                        <h3>Recent Bookings</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Guest</th>
+                                    <th>Room</th>
+                                    <th>Check-in</th>
+                                    <th>Check-out</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Sample data, will be dynamically generated -->
+                                <tr>
+                                    <td>#1001</td>
+                                    <td>John Doe</td>
+                                    <td>Deluxe Room</td>
+                                    <td>2023-07-15</td>
+                                    <td>2023-07-18</td>
+                                    <td><span class="status confirmed">Confirmed</span></td>
+                                </tr>
+                                <tr>
+                                    <td>#1002</td>
+                                    <td>Jane Smith</td>
+                                    <td>Suite</td>
+                                    <td>2023-07-20</td>
+                                    <td>2023-07-25</td>
+                                    <td><span class="status pending">Pending</span></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div id="bookings" class="admin-tab">
+                    <h2>Manage Bookings</h2>
+                    <div class="booking-filters">
+                        <input type="text" placeholder="Search bookings..." id="bookingSearch">
+                        <select id="statusFilter">
+                            <option value="all">All Statuses</option>
+                            <option value="confirmed">Confirmed</option>
+                            <option value="pending">Pending</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                        <button id="refreshBookings">Refresh</button>
+                    </div>
+                    <table class="bookings-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Guest</th>
+                                <th>Room</th>
+                                <th>Check-in</th>
+                                <th>Check-out</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="rooms" class="admin-tab">
+                    <h2>Manage Rooms</h2>
+                    <button id="addRoomBtn" class="add-btn">Add New Room</button>
+                    <table class="rooms-table">
+                        <thead>
+                            <tr>
+                                <th>Room Number</th>
+                                <th>Type</th>
+                                <th>Price</th>
+                                <th>Capacity</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="users" class="admin-tab">
+                    <h2>Manage Users</h2>
+                    <button id="addUserBtn" class="add-btn">Add New User</button>
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Joined Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="payments" class="admin-tab">
+                    <h2>Manual Payments</h2>
+                    <div class="booking-filters">
+                        <button id="refreshPayments">Refresh</button>
+                    </div>
+                    <table class="payments-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Booking</th>
+                                <th>Tran ID</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Payer Mobile</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Populated by admin.js -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="admin-contact" class="admin-tab">
+                    <h2>Contact Form Submissions</h2>
+                    <div class="booking-filters">
+                        <button id="refreshContact">Refresh</button>
+                    </div>
+                    <table class="contact-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Subject</th>
+                                <th>Message</th>
+                                <th>Submitted</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- <div id="settings" class="admin-tab">
+                    <h2>Settings</h2>
+                    <form id="settingsForm">
+                        <div class="form-group">
+                            <label for="hotelName">Hotel Name</label>
+                            <input type="text" id="hotelName" value="LuxStay Hotel">
+                        </div>
+                        <div class="form-group">
+                            <label for="contactEmail">Contact Email</label>
+                            <input type="email" id="contactEmail" value="info@luxstayhotel.com">
+                        </div>
+                        <div class="form-group">
+                            <label for="contactPhone">Contact Phone</label>
+                            <input type="text" id="contactPhone" value="+1 234 567 890">
+                        </div>
+                        <div class="form-group">
+                            <label for="address">Address</label>
+                            <textarea id="address">123 Hotel Street, City, Country</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="checkInTime">Check-in Time</label>
+                            <input type="time" id="checkInTime" value="14:00">
+                        </div>
+                        <div class="form-group">
+                            <label for="checkOutTime">Check-out Time</label>
+                            <input type="time" id="checkOutTime" value="12:00">
+                        </div>
+                        <button type="submit">Save Settings</button>
+                    </form>
+                </div> -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/booking.js"></script>
+    <script src="js/payment.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+</html>

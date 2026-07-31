@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Bookings - LuxStay Hotel</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .notifications { position: relative; margin-right: 12px; }
+        .notif-btn { background: transparent; border: 0; cursor: pointer; position: relative; font-size: 18px; }
+        .notif-badge { position: absolute; top: -6px; right: -8px; background: #dc3545; color: #fff; font-size: 11px; border-radius: 10px; padding: 1px 6px; }
+        .hidden { display: none; }
+        .notif-dropdown { position: absolute; right: 0; top: 36px; width: 300px; background: #fff; border: 1px solid #e9ecef; border-radius: 8px; box-shadow: 0 10px 20px rgba(0,0,0,.08); z-index: 1002; }
+        .notif-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid #f0f0f0; font-weight: 600; }
+        .mark-all { background: transparent; border: 0; color: #667eea; cursor: pointer; font-weight: 600; }
+        #notifList { list-style: none; margin: 0; padding: 0; max-height: 320px; overflow: auto; }
+        #notifList li { padding: 10px 12px; border-bottom: 1px solid #f8f9fa; display: flex; justify-content: space-between; align-items: start; gap: 10px; }
+        #notifList li.unread { background: #f8f9ff; }
+        #notifList .meta { font-size: 12px; color: #777; }
+        .notif-empty { padding: 14px; text-align: center; color: #777; }
+        /* Notification dropdown visibility overrides */
+header { position: relative; z-index: 10; }
+.notifications { position: relative; margin-right: 12px; }
+.notif-btn { color: #111; }                 /* make the bell visible on light headers */
+.notif-badge { background: #ef4444; }       /* brighter red */
+
+.notif-dropdown {
+    background: #111827;                    /* dark background */
+    color: #fff;
+    border: 1px solid rgba(255,255,255,.12);
+    box-shadow: 0 14px 40px rgba(0,0,0,.35);
+}
+
+.notif-header {
+    color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+}
+.mark-all { color: #93c5fd; }
+
+#notifList li {
+    border-bottom: 1px solid rgba(255,255,255,.08);
+}
+#notifList li.unread {
+    background: rgba(147,197,253,.12);
+}
+#notifList .meta { color: #cbd5e1; }
+.notif-empty { color: #cbd5e1; }
+
+#notifList .mark,
+.notif-dropdown .mark {
+    background: #2563eb;
+    color: #fff;
+    border: 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header Section -->
+        <header>
+            <div class="logo">
+                <h1>LuxStay Hotel</h1>
+            </div>
+            <nav>
+                <ul>
+                    <li><a href="index.html#home">Home</a></li>
+                    <li><a href="index.html#rooms">Rooms</a></li>
+                    <li><a href="index.html#services">Services</a></li>
+                    <li><a href="index.html#about">About</a></li>
+                    <li><a href="index.html#contact">Contact</a></li>
+                    <li><a href="my-bookings.html" class="active">My Bookings</a></li>
+                </ul>
+            </nav>
+            <div class="notifications">
+                <button id="notifBtn" class="notif-btn" aria-label="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span id="notifBadge" class="notif-badge hidden">0</span>
+                </button>
+                <div id="notifDropdown" class="notif-dropdown hidden">
+                    <div class="notif-header">
+                        <span>Notifications</span>
+                        <button id="markAllRead" class="mark-all">Mark all read</button>
+                    </div>
+                    <ul id="notifList"></ul>
+                    <div class="notif-empty hidden">No notifications</div>
+                </div>
+            </div>
+            <div class="auth-buttons">
+                <button id="loginBtn">Login</button>
+                <button id="registerBtn">Register</button>
+                <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+            <div class="user-profile hidden">
+                <span id="username">User</span>
+                <button id="logoutBtn">Logout</button>
+            </div>
+            <div class="menu-toggle">
+                <i class="fas fa-bars"></i>
+            </div>
+        </header>
+
+        <!-- Page Banner -->
+        <section class="page-banner">
+            <div class="page-banner-content">
+                <h1>My Bookings</h1>
+                <p>Track the status of your reservations at LuxStay Hotel</p>
+            </div>
+        </section>
+
+        <!-- My Bookings Section -->
+        <section class="my-bookings">
+            <h2 class="section-title">Booking History</h2>
+
+            <div id="loggedOutState" class="bookings-empty-state hidden">
+                <i class="fas fa-lock"></i>
+                <h3>Please login to view your bookings</h3>
+                <p>Log in to your account to see your reservations and track their status.</p>
+                <button id="goToLoginBtn">Login</button>
+            </div>
+
+            <div id="bookingsLoggedIn" class="hidden">
+                <div class="booking-filters">
+                    <select id="myStatusFilter">
+                        <option value="all">All Statuses</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="pending">Pending</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <button id="refreshMyBookings">Refresh</button>
+                </div>
+
+                <div id="bookingsLoading" class="bookings-empty-state hidden">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <h3>Loading your bookings...</h3>
+                </div>
+
+                <div id="noBookingsState" class="bookings-empty-state hidden">
+                    <i class="fas fa-calendar-xmark"></i>
+                    <h3>No bookings found</h3>
+                    <p>You haven't made any reservations yet.</p>
+                    <a href="index.html#rooms"><button type="button">Browse Rooms</button></a>
+                </div>
+
+                <div id="bookingsGrid" class="bookings-grid"></div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer>
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>LuxStay Hotel</h3>
+                    <p>Experience luxury and comfort like never before at LuxStay Hotel.</p>
+                    <div class="social-icons">
+                        <a href="#"><i class="fab fa-facebook"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                    </div>
+                </div>
+                <div class="footer-section">
+                    <h3>Quick Links</h3>
+                    <ul>
+                        <li><a href="index.html#home">Home</a></li>
+                        <li><a href="index.html#rooms">Rooms</a></li>
+                        <li><a href="index.html#services">Services</a></li>
+                        <li><a href="index.html#about">About</a></li>
+                        <li><a href="index.html#contact">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Subscribe</h3>
+                    <p>Subscribe to our newsletter for updates and offers.</p>
+                    <form class="subscribe-form">
+                        <input type="email" placeholder="Your Email" required>
+                        <button type="submit">Subscribe</button>
+                    </form>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2023 LuxStay Hotel. All Rights Reserved.</p>
+            </div>
+        </footer>
+
+        <!-- Modal Popups -->
+        <!-- Login Modal -->
+        <div id="loginModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h2>Login</h2>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="loginEmail">Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPassword">Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit">Login</button>
+                    <p class="form-footer">Don't have an account? <span id="showRegister">Register</span></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Register Modal -->
+        <div id="registerModal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h2>Register</h2>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="registerName">Full Name</label>
+                        <input type="text" id="registerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerEmail">Email</label>
+                        <input type="email" id="registerEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="registerPassword">Password</label>
+                        <input type="password" id="registerPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">Confirm Password</label>
+                        <input type="password" id="confirmPassword" required>
+                    </div>
+                    <button type="submit">Register</button>
+                    <p class="form-footer">Already have an account? <span id="showLogin">Login</span></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/my-bookings.js"></script>
+</body>
+</html>
