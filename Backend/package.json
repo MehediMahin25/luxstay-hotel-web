@@ -13,7 +13,10 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",
     "express": "^4.18.2",
-    "sqlite3": "^5.1.6",
+    "node-gyp": "^13.0.2",
+    "pg": "^8.13.0",
+    "rebuild": "^0.1.2",
+    "sqlite3": "^6.0.1",
     "sslcommerz-lts": "^1.2.0"
   },
   "devDependencies": {

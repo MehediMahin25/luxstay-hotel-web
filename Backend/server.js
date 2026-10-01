@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const bcrypt = require('bcryptjs');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const path = require('path');
 const crypto = require('crypto');
 const SSLCommerzPayment = require('sslcommerz-lts');
@@ -12,6 +12,98 @@ const app = express();
 const PORT = process.env.PORT || 3007;
 const HOST = process.env.HOST || 'http://localhost';
 const BASE_URL = process.env.BASE_URL || `${HOST}:${PORT}`;
+const isPostgres = Boolean(process.env.DATABASE_URL);
+
+function normalizePostgresSql(sql) {
+    let normalized = sql.trim();
+    normalized = normalized.replace(/INSERT\s+OR\s+IGNORE\s+INTO/gi, 'INSERT INTO');
+    normalized = normalized.replace(/INTEGER\s+PRIMARY\s+KEY\s+AUTOINCREMENT/gi, 'BIGSERIAL PRIMARY KEY');
+    normalized = normalized.replace(/DATETIME/g, 'TIMESTAMP');
+    normalized = normalized.replace(/"([^\"]+)"/g, "'$1'");
+    normalized = normalized.replace(/`/g, '');
+
+    if (/^INSERT\s+INTO/gi.test(normalized) && !/ON\s+CONFLICT/gi.test(normalized)) {
+        normalized += ' ON CONFLICT DO NOTHING';
+    }
+
+    if (/^INSERT\s+INTO/gi.test(normalized) && !/RETURNING/gi.test(normalized)) {
+        normalized += ' RETURNING id';
+    }
+
+    return normalized;
+}
+
+function convertSqlPlaceholders(sql) {
+    let placeholderIndex = 0;
+    return sql.replace(/\?/g, () => {
+        placeholderIndex += 1;
+        return `$${placeholderIndex}`;
+    });
+}
+
+function createPostgresDb() {
+    const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    });
+
+    pool.on('error', (err) => {
+        console.error('Unexpected Postgres pool error:', err);
+    });
+
+    function runQuery(sql, params, callback) {
+        const values = Array.isArray(params) ? params : [];
+        const safeSql = convertSqlPlaceholders(normalizePostgresSql(sql));
+        pool.query(safeSql, values, (err, result) => {
+            if (!callback) return;
+
+            if (err) {
+                callback(err, null, { lastID: null, changes: 0 });
+                return;
+            }
+
+            const context = {
+                lastID: result?.rows?.[0]?.id ?? null,
+                changes: result?.rowCount ?? 0
+            };
+            callback(null, result?.rows ?? result ?? [], context);
+        });
+    }
+
+    return {
+        get(sql, params, callback) {
+            if (typeof params === 'function') {
+                callback = params;
+                params = [];
+            }
+            runQuery(sql, params, (err, rows, context) => {
+                if (err) return callback(err, null);
+                callback(null, Array.isArray(rows) ? rows[0] : rows);
+            });
+        },
+        all(sql, params, callback) {
+            if (typeof params === 'function') {
+                callback = params;
+                params = [];
+            }
+            runQuery(sql, params, (err, rows, context) => {
+                if (err) return callback(err, null);
+                callback(null, rows);
+            });
+        },
+        run(sql, params, callback) {
+            if (typeof params === 'function') {
+                callback = params;
+                params = [];
+            }
+            runQuery(sql, params, (err, rows, context) => {
+                if (callback) {
+                    callback.call(context, err, rows);
+                }
+            });
+        }
+    };
+}
 
 // SSL Commerz Configuration (falls back to the public sandbox demo store)
 const SSL_COMMERZ_CONFIG = {
@@ -36,43 +128,36 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // serve static assets (frontend) from project root
 // previous public directory may not exist; using parent folder so index.html and assets are reachable
 app.use(express.static(path.join(__dirname, '..')))
-// Database setup
-const db = new sqlite3.Database('./hotel.db', (err) => {
-    if (err) {
-        console.error('Error opening database:', err);
-    } else {
-        console.log('Connected to SQLite database');
-        initializeDatabase();
-    }
-});
+let db;
+
+if (isPostgres) {
+    db = createPostgresDb();
+    console.log('Connected to PostgreSQL database');
+    initializeDatabase();
+}
 
 // Initialize database tables
 function initializeDatabase() {
     const tables = [
-        // Users table
         `CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             name TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
             role TEXT DEFAULT 'user',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )`,
-        
-        // Rooms table
         `CREATE TABLE IF NOT EXISTS rooms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             number TEXT UNIQUE NOT NULL,
             type TEXT NOT NULL,
             price REAL NOT NULL,
             capacity INTEGER NOT NULL,
             status TEXT DEFAULT 'available',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )`,
-        
-        // Bookings table
         `CREATE TABLE IF NOT EXISTS bookings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             user_id INTEGER,
             room_id INTEGER,
             check_in_date TEXT NOT NULL,
@@ -84,93 +169,72 @@ function initializeDatabase() {
             tran_id TEXT,
             payment_details TEXT,
             special_requests TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id),
             FOREIGN KEY (room_id) REFERENCES rooms (id)
         )`,
-        
-        // Settings table
         `CREATE TABLE IF NOT EXISTS settings (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             hotel_name TEXT DEFAULT 'LuxStay Hotel',
             contact_email TEXT DEFAULT 'info@luxstayhotel.com',
             contact_phone TEXT DEFAULT '+1 234 567 890',
             address TEXT DEFAULT '123 Hotel Street, City, Country',
             check_in_time TEXT DEFAULT '14:00',
             check_out_time TEXT DEFAULT '12:00',
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         )`,
-
-        // Payments table
         `CREATE TABLE IF NOT EXISTS payments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             booking_id INTEGER,
             tran_id TEXT,
             amount REAL,
             method TEXT,
             payer_mobile TEXT,
             status TEXT DEFAULT 'pending',
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (booking_id) REFERENCES bookings (id)
         )`,
-
-        // Notifications table
         `CREATE TABLE IF NOT EXISTS notifications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id BIGSERIAL PRIMARY KEY,
             user_id INTEGER NOT NULL,
             title TEXT,
             message TEXT,
             is_read INTEGER DEFAULT 0,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )`,
-
-        // Contact messages table
-`CREATE TABLE IF NOT EXISTS contact_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    subject TEXT NOT NULL,
-    message TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)`
-
+        `CREATE TABLE IF NOT EXISTS contact_messages (
+            id BIGSERIAL PRIMARY KEY,
+            name TEXT NOT NULL,
+            email TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            message TEXT NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        )`
     ];
-    
-    // Check if required columns exist in bookings table and add them if they don't
-    db.get("PRAGMA table_info(bookings)", (err, rows) => {
-        if (err) {
-            console.error('Error checking bookings table structure:', err);
-            return;
-        }
-        
-        // Add payment-related columns if they don't exist
-        const addColumns = [
-            "ALTER TABLE bookings ADD COLUMN payment_status TEXT DEFAULT 'pending'",
-            "ALTER TABLE bookings ADD COLUMN tran_id TEXT",
-            "ALTER TABLE bookings ADD COLUMN payment_details TEXT"
-        ];
-        
-        addColumns.forEach(sql => {
-            db.run(sql, (err) => {
-                if (err && !err.message.includes('duplicate column name')) {
-                    console.error('Error adding column:', err);
-                }
-            });
-        });
-    });
-    
-    tables.forEach(table => {
-        db.run(table, (err) => {
-                    if (err) {
+
+    const createTable = (sql) => new Promise((resolve, reject) => {
+        db.run(sql, (err) => {
+            if (err) {
                 console.error('Error creating table:', err);
+                reject(err);
+                return;
             }
+            resolve();
         });
     });
 
-    // Insert sample data if tables are empty
-    insertSampleData();
+    (async () => {
+        try {
+            for (const table of tables) {
+                await createTable(table);
+            }
+            insertSampleData();
+        } catch (error) {
+            console.error('Database initialization failed:', error);
+        }
+    })();
 }
 
 // Insert sample data
@@ -454,13 +518,39 @@ app.get('/api/test', (req, res) => {
     res.json({ message: 'API is working!' });
 });
 
+function sanitizeForPayment(value) {
+  if (value === undefined || value === null) return '';
+  return String(value).replace(/[\r\n]/g, '').trim();
+}
+
+function validatePaymentInput(payload) {
+  const fields = [
+    payload.customer_name,
+    payload.customer_email,
+    payload.customer_phone,
+    payload.tran_id,
+    payload.val_id,
+    payload.amount,
+    payload.booking_id
+  ];
+
+  for (const field of fields) {
+    if (typeof field === 'string' && /[\r\n]/.test(field)) {
+      throw new Error('Invalid payment input');
+    }
+  }
+}
+
 // Simple Payment Routes
 app.post('/api/payment/init', (req, res) => {
     try {
         console.log('Payment initialization request received:', req.body);
-        const { booking_id, amount, customer_name, customer_email, customer_phone } = req.body;
-        
-        // Validate required fields
+        // Sanitize and validate input
+        const customer_name = sanitizeForPayment(req.body.customer_name);
+        const customer_email = sanitizeForPayment(req.body.customer_email);
+        const customer_phone = sanitizeForPayment(req.body.customer_phone);
+
+        // Check required fields are present
         const missingFields = [];
         if (!booking_id) missingFields.push('booking_id');
         if (!amount) missingFields.push('amount');
@@ -476,7 +566,19 @@ app.post('/api/payment/init', (req, res) => {
                 missing_fields: missingFields 
             });
         }
+        // Validate input to prevent injection or malformed data
+        validatePaymentInput({
+            customer_name,
+            customer_email,
+            customer_phone,
+            tran_id: sanitizeForPayment(req.body.tran_id),
+            val_id: sanitizeForPayment(req.body.val_id),
+            amount: sanitizeForPayment(req.body.amount),
+            booking_id: sanitizeForPayment(req.body.booking_id)
+        });
         
+
+
         // Check if booking exists
         db.get('SELECT * FROM bookings WHERE id = ?', [booking_id], (err, booking) => {
             if (err) {
