@@ -106,6 +106,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function fetchBookings(userId) {
+        if (!Number.isSafeInteger(Number(userId)) || Number(userId) <= 0) {
+            console.error('Cannot fetch bookings: the signed-in user has no valid ID. Please log out and sign in again.');
+            return;
+        }
+
         if (bookingsLoading) bookingsLoading.classList.remove('hidden');
         if (bookingsGrid) bookingsGrid.innerHTML = '';
         if (noBookingsState) noBookingsState.classList.add('hidden');
@@ -114,6 +119,9 @@ document.addEventListener('DOMContentLoaded', function () {
             console.log('--- Checking user bookings fetch: start ---');
             const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(userId)}`);
             console.log('--- Checking user bookings fetch: HTTP status', res.status, '---');
+            if (!res.ok) {
+                throw new Error(`Bookings API returned HTTP ${res.status}`);
+            }
             allBookings = await res.json();
             if (!Array.isArray(allBookings)) allBookings = [];
         } catch (e) {
@@ -130,6 +138,13 @@ document.addEventListener('DOMContentLoaded', function () {
         const user = JSON.parse(localStorage.getItem('user') || 'null');
 
         if (!user) {
+            if (loggedOutState) loggedOutState.classList.remove('hidden');
+            if (bookingsLoggedIn) bookingsLoggedIn.classList.add('hidden');
+            return;
+        }
+
+        if (!Number.isSafeInteger(Number(user.id)) || Number(user.id) <= 0) {
+            console.error('Stored user has no valid ID. Please log out and sign in again.');
             if (loggedOutState) loggedOutState.classList.remove('hidden');
             if (bookingsLoggedIn) bookingsLoggedIn.classList.add('hidden');
             return;
