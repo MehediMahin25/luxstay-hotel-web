@@ -116,14 +116,16 @@ document.addEventListener('DOMContentLoaded', function () {
         if (noBookingsState) noBookingsState.classList.add('hidden');
 
         try {
-            console.log('--- Checking user bookings fetch: start ---');
+            console.log('--- Checking user bookings fetch: start; user ID:', userId, '---');
             const res = await fetch(`/api/bookings?user_id=${encodeURIComponent(userId)}`);
             console.log('--- Checking user bookings fetch: HTTP status', res.status, '---');
             if (!res.ok) {
                 throw new Error(`Bookings API returned HTTP ${res.status}`);
             }
-            allBookings = await res.json();
-            if (!Array.isArray(allBookings)) allBookings = [];
+            const responseData = await res.json();
+            console.log('Bookings API response:', responseData);
+            allBookings = Array.isArray(responseData) ? responseData : [];
+            console.log('Bookings received:', allBookings.length);
         } catch (e) {
             console.error('--- Checking user bookings fetch: failed ---', e);
             allBookings = [];
