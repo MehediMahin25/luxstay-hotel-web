@@ -518,6 +518,7 @@ app.get('/api/test', (req, res) => {
     res.json({ message: 'API is working!' });
 });
 
+// Payment Input Sanitization and Validation
 function sanitizeForPayment(value) {
   if (value === undefined || value === null) return '';
   return String(value).replace(/[\r\n]/g, '').trim();
@@ -541,7 +542,7 @@ function validatePaymentInput(payload) {
   }
 }
 
-// Simple Payment Routes
+// Simple Payment Route
 app.post('/api/payment/init', (req, res) => {
     try {
         console.log('Payment initialization request received:', req.body);
@@ -549,6 +550,8 @@ app.post('/api/payment/init', (req, res) => {
         const customer_name = sanitizeForPayment(req.body.customer_name);
         const customer_email = sanitizeForPayment(req.body.customer_email);
         const customer_phone = sanitizeForPayment(req.body.customer_phone);
+        const booking_id = sanitizeForPayment(req.body.booking_id);
+        const amount = sanitizeForPayment(req.body.amount);
 
         // Check required fields are present
         const missingFields = [];
